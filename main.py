@@ -57,6 +57,8 @@ def enviar_email(original, archivado):
         smtp.send_message(msg)
 
 def main():
+    # Comentario para forzar push y probar workflow
+    # Puedes eliminarlo después si quieres
     url = obtener_url_market_wrap()
     if url:
         print(f"Artículo encontrado: {url}")
