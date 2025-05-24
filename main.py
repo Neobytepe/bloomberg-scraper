@@ -26,7 +26,8 @@ def obtener_url_market_wrap():
     for a in soup.find_all("a", href=True):
         texto = a.get_text(strip=True).lower()
         href = a["href"]
-        if "markets wrap" in texto:  # Busca "markets wrap"
+        # Buscar noticia específica de prueba
+        if "trump risks us consumer discontent" in texto:
             if href.startswith("/news/articles/"):
                 return "https://www.bloomberg.com" + href
     return None
@@ -38,14 +39,14 @@ def archivar_url(url):
 
 def enviar_email(original, archivado):
     msg = EmailMessage()
-    msg['Subject'] = "Market Wrap Bloomberg Diario"
+    msg['Subject'] = "Market Wrap Bloomberg Diario (Prueba con noticia Trump)"
     msg['From'] = GMAIL_USER
     msg['To'] = EMAIL_TO
 
     contenido = f"""
     Hola,
 
-    Aquí tienes el artículo Market Wrap de Bloomberg de hoy:
+    Aquí tienes la noticia de prueba de Bloomberg de hoy:
 
     Artículo Original:
     {original}
@@ -75,7 +76,7 @@ def main():
         enviar_email(url, archivada)
         print("Correo enviado con éxito.")
     else:
-        print("No se encontró artículo Market Wrap. No se enviará correo.")
+        print("No se encontró la noticia de prueba. No se enviará correo.")
 
 if __name__ == "__main__":
     main()
