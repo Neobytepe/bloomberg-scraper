@@ -2,10 +2,10 @@ name: Bloomberg Scraper Daily
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # Se ejecuta todos los días a las 12:00 UTC
-  push:
-    branches:
-      - main
+    # Ejecutar a las 14:00 UTC (9am hora Perú)
+    - cron: '0 14 * * 1-5'
+    # Ejecutar a las 21:00 UTC (4pm hora Perú)
+    - cron: '0 21 * * 1-5'
 
 jobs:
   run-script:
