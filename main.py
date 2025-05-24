@@ -4,11 +4,17 @@ from bs4 import BeautifulSoup
 import smtplib
 from email.message import EmailMessage
 import time
+from datetime import datetime
 
 # --- Configuración desde variables de entorno ---
 GMAIL_USER = os.getenv("GMAIL_USER")   # Tu correo Gmail para enviar emails
 GMAIL_PASS = os.getenv("GMAIL_PASS")   # Contraseña de aplicación de Gmail
 EMAIL_TO = os.getenv("EMAIL_TO")       # Correo destinatario que recibirá el email
+
+def es_dia_habil():
+    ahora = datetime.now()
+    # weekday() lunes=0 ... viernes=4
+    return ahora.weekday() < 5
 
 def obtener_url_market_wrap():
     url = "https://www.bloomberg.com/markets"
@@ -20,7 +26,7 @@ def obtener_url_market_wrap():
     for a in soup.find_all("a", href=True):
         texto = a.get_text(strip=True).lower()
         href = a["href"]
-        if "markets wrap" in texto:  # Cambio a "markets wrap"
+        if "markets wrap" in texto:  # Busca "markets wrap"
             if href.startswith("/news/articles/"):
                 return "https://www.bloomberg.com" + href
     return None
@@ -57,6 +63,10 @@ def enviar_email(original, archivado):
         smtp.send_message(msg)
 
 def main():
+    if not es_dia_habil():
+        print("No es día hábil, no se busca artículo.")
+        return
+
     url = obtener_url_market_wrap()
     if url:
         print(f"Artículo encontrado: {url}")
@@ -65,7 +75,7 @@ def main():
         enviar_email(url, archivada)
         print("Correo enviado con éxito.")
     else:
-        print("No se encontró artículo Market Wrap.")
+        print("No se encontró artículo Market Wrap. No se enviará correo.")
 
 if __name__ == "__main__":
     main()
