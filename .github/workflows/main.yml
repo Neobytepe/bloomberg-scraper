@@ -1,0 +1,27 @@
+name: Bloomberg Scraper Daily
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Se ejecuta todos los días a las 12:00 UTC
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.x
+
+    - name: Install dependencies
+      run: pip install requests beautifulsoup4
+
+    - name: Run scraper script
+      env:
+        GMAIL_USER: ${{ secrets.GMAIL_USER }}
+        GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
+        EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      run: python main.py
