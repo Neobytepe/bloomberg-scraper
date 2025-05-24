@@ -20,7 +20,7 @@ def obtener_url_market_wrap():
     for a in soup.find_all("a", href=True):
         texto = a.get_text(strip=True).lower()
         href = a["href"]
-        if "market wrap" in texto:
+        if "markets wrap" in texto:  # Cambio a "markets wrap"
             if href.startswith("/news/articles/"):
                 return "https://www.bloomberg.com" + href
     return None
@@ -57,8 +57,6 @@ def enviar_email(original, archivado):
         smtp.send_message(msg)
 
 def main():
-    # Comentario para forzar push y probar workflow
-    # Puedes eliminarlo después si quieres
     url = obtener_url_market_wrap()
     if url:
         print(f"Artículo encontrado: {url}")
