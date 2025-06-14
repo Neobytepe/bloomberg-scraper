@@ -1,6 +1,7 @@
 name: Bloomberg Scraper Daily
 
 on:
+  workflow_dispatch:  # ✅ Permite ejecución manual desde GitHub
   schedule:
     # Ejecutar a las 14:00 UTC (9am hora Perú)
     - cron: '0 14 * * 1-5'
