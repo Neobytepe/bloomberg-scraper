@@ -1,61 +1,26 @@
 import os
-import requests
-from bs4 import BeautifulSoup
 import smtplib
 from email.message import EmailMessage
-import time
-from datetime import datetime
 
-# --- Configuración desde variables de entorno ---
-GMAIL_USER = os.getenv("GMAIL_USER")   # Tu correo Gmail para enviar emails
-GMAIL_PASS = os.getenv("GMAIL_PASS")   # Contraseña de aplicación de Gmail
-EMAIL_TO = os.getenv("EMAIL_TO")       # Correo destinatario que recibirá el email
+# --- Variables de entorno (desde GitHub Secrets o .env local) ---
+GMAIL_USER = os.getenv("GMAIL_USER")
+GMAIL_PASS = os.getenv("GMAIL_PASS")
+EMAIL_TO = os.getenv("EMAIL_TO")
 
-def es_dia_habil():
-    ahora = datetime.now()
-    # weekday() lunes=0 ... viernes=4
-    return ahora.weekday() < 5
-
-def obtener_url_market_wrap():
-    url = "https://www.bloomberg.com/markets"
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    r = requests.get(url, headers=headers)
-    soup = BeautifulSoup(r.content, "html.parser")
-
-    for a in soup.find_all("a", href=True):
-        texto = a.get_text(strip=True).lower()
-        href = a["href"]
-        # Buscar noticia específica de prueba
-        if "trump risks us consumer discontent" in texto:
-            if href.startswith("/news/articles/"):
-                return "https://www.bloomberg.com" + href
-    return None
-
-def archivar_url(url):
-    archive_url = f"https://archive.ph/?run=1&url={url}"
-    time.sleep(15)  # Espera para que archive.ph procese el archivado
-    return archive_url
-
-def enviar_email(original, archivado):
+def enviar_email_prueba():
     msg = EmailMessage()
-    msg['Subject'] = "Market Wrap Bloomberg Diario (Prueba con noticia Trump)"
+    msg['Subject'] = "✅ Prueba de Envío de Email desde GitHub Actions"
     msg['From'] = GMAIL_USER
     msg['To'] = EMAIL_TO
 
-    contenido = f"""
+    contenido = """
     Hola,
 
-    Aquí tienes la noticia de prueba de Bloomberg de hoy:
+    Este es un correo de prueba enviado automáticamente desde GitHub Actions.
 
-    Artículo Original:
-    {original}
+    Si recibes este mensaje, la configuración de SMTP y Secrets funciona correctamente.
 
-    Artículo Archivado (sin muro de pago):
-    {archivado}
-
-    Saludos,
-    Tu bot automático
+    ¡Saludos!
     """
     msg.set_content(contenido)
 
@@ -63,20 +28,7 @@ def enviar_email(original, archivado):
         smtp.login(GMAIL_USER, GMAIL_PASS)
         smtp.send_message(msg)
 
-def main():
-    if not es_dia_habil():
-        print("No es día hábil, no se busca artículo.")
-        return
-
-    url = obtener_url_market_wrap()
-    if url:
-        print(f"Artículo encontrado: {url}")
-        archivada = archivar_url(url)
-        print(f"URL archivada: {archivada}")
-        enviar_email(url, archivada)
-        print("Correo enviado con éxito.")
-    else:
-        print("No se encontró la noticia de prueba. No se enviará correo.")
+    print("✅ Correo enviado con éxito.")
 
 if __name__ == "__main__":
-    main()
+    enviar_email_prueba()
