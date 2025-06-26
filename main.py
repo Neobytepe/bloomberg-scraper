@@ -7,6 +7,7 @@ from email.message import EmailMessage
 import time
 import re
 import pdfkit
+from playwright.sync_api import sync_playwright
 
 # --- Cargar variables desde archivo .env ---
 load_dotenv()
@@ -21,26 +22,26 @@ if not all([GMAIL_USER, GMAIL_PASS, EMAIL_TO]):
     raise EnvironmentError("Faltan variables de entorno: GMAIL_USER, GMAIL_PASS o EMAIL_TO")
 
 def obtener_url_market_wrap():
-    url = "https://www.bloomberg.com/markets"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto("https://www.bloomberg.com/markets", timeout=60000)
+        page.wait_for_timeout(5000)  # Espera 5 segundos para que cargue el JS
 
-    try:
-        r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()
-    except requests.RequestException as e:
-        print(f"Error al obtener la página: {e}")
-        return None
+        elementos = page.locator("div:has-text('Markets Wrap')").all()
+        print(f"Se encontraron {len(elementos)} bloques con 'Markets Wrap'")
 
-    soup = BeautifulSoup(r.content, "html.parser")
+        for e in elementos:
+            try:
+                link = e.locator("xpath=ancestor::a").first
+                href = link.get_attribute("href")
+                if href and href.startswith("/news/articles/"):
+                    browser.close()
+                    return "https://www.bloomberg.com" + href
+            except:
+                continue
 
-    etiquetas = soup.find_all("div", class_="OptionalEyebrow_optionalEyebrow__mNUnT")
-    for etiqueta in etiquetas:
-        if "markets wrap" in etiqueta.get_text(strip=True).lower():
-            contenedor = etiqueta.find_parent("div", class_="StoryBlock_storyBlock")
-            if contenedor:
-                enlace = contenedor.find("a", href=True)
-                if enlace and enlace["href"].startswith("/news/articles/"):
-                    return "https://www.bloomberg.com" + enlace["href"]
+        browser.close()
     return None
 
 
