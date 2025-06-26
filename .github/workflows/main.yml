@@ -2,7 +2,7 @@ name: Ejecutar Bloomberg Scraper
 
 on:
   schedule:
-    - cron: "0 15 * * *"  # todos los días a las 15:00 UTC (ajusta si quieres)
+    - cron: "0 15 * * *"  # Ejecuta todos los días a las 15:00 UTC (ajusta si quieres)
   workflow_dispatch:
 
 jobs:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Clonar repo
+      - name: Clonar repositorio
         uses: actions/checkout@v3
 
       - name: Instalar Python
@@ -18,7 +18,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Instalar dependencias
+      - name: Instalar wkhtmltopdf
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wkhtmltopdf
+
+      - name: Instalar dependencias de Python y Playwright
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
