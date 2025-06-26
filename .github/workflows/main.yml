@@ -2,7 +2,7 @@ name: Ejecutar Bloomberg Scraper
 
 on:
   schedule:
-    - cron: "0 15 * * *"  # Ejecuta todos los días a las 15:00 UTC (ajusta si quieres)
+    - cron: "0 15 * * *"  # Ejecuta todos los días a las 15:00 UTC
   workflow_dispatch:
 
 jobs:
