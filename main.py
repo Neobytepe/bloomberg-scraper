@@ -1,5 +1,4 @@
 import os
-from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup
 import smtplib
@@ -9,12 +8,16 @@ import re
 import pdfkit
 from playwright.sync_api import sync_playwright
 
-# --- Cargar variables desde archivo .env ---
-load_dotenv()
+# --- Cargar variables de entorno ---
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except:
+    pass  # Ignora si dotenv no está disponible (funciona igual en GitHub)
 
-GMAIL_USER = os.getenv("GMAIL_USER")
-GMAIL_PASS = os.getenv("GMAIL_PASS")
-EMAIL_TO = os.getenv("EMAIL_TO")
+GMAIL_USER = os.environ.get("GMAIL_USER")
+GMAIL_PASS = os.environ.get("GMAIL_PASS")
+EMAIL_TO = os.environ.get("EMAIL_TO")
 HISTORIAL_ARCHIVO = "ultima_url.txt"
 
 # Verificar variables
@@ -26,7 +29,7 @@ def obtener_url_market_wrap():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto("https://www.bloomberg.com/markets", timeout=60000)
-        page.wait_for_timeout(5000)  # Espera 5 segundos para que cargue el JS
+        page.wait_for_timeout(5000)
 
         elementos = page.locator("div:has-text('Markets Wrap')").all()
         print(f"Se encontraron {len(elementos)} bloques con 'Markets Wrap'")
@@ -44,7 +47,6 @@ def obtener_url_market_wrap():
         browser.close()
     return None
 
-
 def archivar_url(url):
     print("Enviando URL a archive.ph...")
     headers = {
@@ -54,18 +56,14 @@ def archivar_url(url):
 
     try:
         res = requests.post("https://archive.ph/submit/", data={"url": url}, headers=headers, timeout=60)
-        time.sleep(20)  # Dale más tiempo a archive.ph
-
-        # Guardar HTML para depuración
+        time.sleep(20)
         with open("respuesta_archiveph.html", "w", encoding="utf-8") as f:
             f.write(res.text)
 
         soup = BeautifulSoup(res.text, "html.parser")
-
         link_input = soup.find("input", {"id": "SHARE_LONGLINK"})
         if link_input:
             return link_input.get("value")
-
         meta_tag = soup.find("meta", {"property": "og:url"})
         if meta_tag:
             return meta_tag.get("content")
