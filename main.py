@@ -36,12 +36,13 @@ def obtener_url_market_wrap():
     etiquetas = soup.find_all("div", class_="OptionalEyebrow_optionalEyebrow__mNUnT")
     for etiqueta in etiquetas:
         if "markets wrap" in etiqueta.get_text(strip=True).lower():
-            padre = etiqueta.find_parent("a")
-            if padre and padre.has_attr("href"):
-                href = padre["href"]
-                if href.startswith("/news/articles/"):
-                    return "https://www.bloomberg.com" + href
+            contenedor = etiqueta.find_parent("div", class_="StoryBlock_storyBlock")
+            if contenedor:
+                enlace = contenedor.find("a", href=True)
+                if enlace and enlace["href"].startswith("/news/articles/"):
+                    return "https://www.bloomberg.com" + enlace["href"]
     return None
+
 
 def archivar_url(url):
     print("Enviando URL a archive.ph...")
