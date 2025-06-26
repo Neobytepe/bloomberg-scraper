@@ -1,31 +1,28 @@
-name: Bloomberg Scraper Daily
+name: Ejecutar Bloomberg Market Wrap
 
 on:
-  workflow_dispatch:  # ✅ Permite ejecución manual desde GitHub
   schedule:
-    # Ejecutar a las 14:00 UTC (9am hora Perú)
-    - cron: '0 14 * * 1-5'
-    # Ejecutar a las 21:00 UTC (4pm hora Perú)
-    - cron: '0 21 * * 1-5'
+    - cron: '30 12 * * *'  # Todos los días a las 12:30 UTC
+  workflow_dispatch:        # También puedes ejecutarlo manualmente
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Clonar repo
+      uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.x
+    - name: Instalar dependencias
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wkhtmltopdf
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
 
-    - name: Install dependencies
-      run: pip install requests beautifulsoup4
-
-    - name: Run scraper script
+    - name: Ejecutar script
       env:
         GMAIL_USER: ${{ secrets.GMAIL_USER }}
         GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
-        EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        EMAIL_TO:   ${{ secrets.EMAIL_TO }}
       run: python main.py
