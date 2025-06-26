@@ -2,7 +2,7 @@ name: Ejecutar Bloomberg Scraper
 
 on:
   schedule:
-    - cron: "0 15 * * *"  # Ejecuta todos los días a las 15:00 UTC
+    - cron: "0 15 * * *"
   workflow_dispatch:
 
 jobs:
@@ -30,8 +30,8 @@ jobs:
           playwright install --with-deps
 
       - name: Ejecutar script
-  run: python main.py
-  env:
-    GMAIL_USER: ${{ secrets.GMAIL_USER }}
-    GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
-    EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python main.py
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
