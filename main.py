@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup
 import smtplib
 from email.message import EmailMessage
 import time
-import re
 import pdfkit
 from playwright.sync_api import sync_playwright
 
@@ -31,17 +30,20 @@ def obtener_url_market_wrap():
         page.goto("https://www.bloomberg.com/markets", timeout=60000)
         page.wait_for_timeout(5000)
 
-        elementos = page.locator("div:has-text('Markets Wrap')").all()
-        print(f"Se encontraron {len(elementos)} bloques con 'Markets Wrap'")
+        # Buscar bloques que contengan "Markets Wrap"
+        bloques = page.locator("div:has-text('Markets Wrap')").all()
+        print(f"Se encontraron {len(bloques)} bloques con 'Markets Wrap'")
 
-        for e in elementos:
+        for bloque in bloques:
             try:
-                link = e.locator("xpath=ancestor::a").first
-                href = link.get_attribute("href")
+                # Buscar un <a> dentro del mismo bloque
+                enlace = bloque.locator("a").first
+                href = enlace.get_attribute("href")
                 if href and href.startswith("/news/articles/"):
                     browser.close()
                     return "https://www.bloomberg.com" + href
-            except:
+            except Exception as e:
+                print(f"Error al buscar enlace: {e}")
                 continue
 
         browser.close()
