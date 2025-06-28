@@ -1,155 +1,229 @@
 import os
-import requests
-from bs4 import BeautifulSoup
 import smtplib
 from email.message import EmailMessage
 import time
 import pdfkit
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError
+import requests # Se mantiene para la función de archivar
 
 # --- Cargar variables de entorno ---
 try:
     from dotenv import load_dotenv
     load_dotenv()
-except:
-    pass  # Ignora si dotenv no está disponible (funciona igual en GitHub)
+    print("Variables de entorno cargadas desde .env")
+except ImportError:
+    print("dotenv no instalado, se usarán las variables del sistema (ideal para GitHub Actions).")
+    pass  # Ignora si dotenv no está disponible
 
 GMAIL_USER = os.environ.get("GMAIL_USER")
 GMAIL_PASS = os.environ.get("GMAIL_PASS")
 EMAIL_TO = os.environ.get("EMAIL_TO")
 HISTORIAL_ARCHIVO = "ultima_url.txt"
 
-# Verificar variables
+# Verificar variables al inicio
 if not all([GMAIL_USER, GMAIL_PASS, EMAIL_TO]):
-    raise EnvironmentError("Faltan variables de entorno: GMAIL_USER, GMAIL_PASS o EMAIL_TO")
+    raise EnvironmentError("CRÍTICO: Faltan variables de entorno: GMAIL_USER, GMAIL_PASS o EMAIL_TO")
 
+# ==============================================================================
+# FUNCIÓN DE BÚSQUEDA ACTUALIZADA CON PLAYWRIGHT
+# ==============================================================================
 def obtener_url_market_wrap():
-    url = "https://www.bloomberg.com/markets"
+    """
+    Usa Playwright para controlar un navegador real, encontrar el artículo y devolver la URL.
+    Es más robusto contra cambios en la web y webs que usan JavaScript.
+    """
+    url_bloomberg = "https://www.bloomberg.com/markets"
+    print(f"Accediendo a {url_bloomberg} con Playwright...")
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True) # headless=True para que no se abra una ventana visible
+        page = browser.new_page()
+        try:
+            # Ir a la página y esperar a que esté completamente cargada
+            page.goto(url_bloomberg, timeout=90000, wait_until='domcontentloaded')
+
+            # --- ¡SELECTOR CLAVE! ---
+            # Este selector busca un enlace 'a' que contenga el texto "Markets Wrap".
+            # Es la parte más importante y la que podrías tener que ajustar en el futuro
+            # si Bloomberg vuelve a cambiar su web.
+            selector = 'a:has-text("Markets Wrap")'
+            
+            print(f"Buscando con el selector: '{selector}'")
+            # Localiza el primer elemento que coincida con el selector
+            link_element = page.locator(selector).first
+            
+            # Esperar a que el elemento sea visible para asegurar que no es un elemento oculto
+            link_element.wait_for(state='visible', timeout=15000)
+            
+            href = link_element.get_attribute("href")
+            
+            if href and "/news/articles/" in href:
+                # Construir URL completa si es relativa
+                if href.startswith("/"):
+                    enlace_completo = "https://www.bloomberg.com" + href
+                else:
+                    enlace_completo = href
+
+                print(f"¡Éxito! Artículo encontrado: {enlace_completo}")
+                browser.close()
+                return enlace_completo
+            else:
+                print("Se encontró un elemento, pero su 'href' no parece ser un artículo de noticia válido.")
+
+        except TimeoutError:
+            print("Error de TIMEOUT: La página tardó mucho en cargar o el selector no encontró ningún elemento a tiempo.")
+            page.screenshot(path='screenshot_error_timeout.png')
+            print("Se guardó una captura de pantalla del error en 'screenshot_error_timeout.png' para depuración.")
+        except Exception as e:
+            print(f"Ocurrió un error inesperado con Playwright: {e}")
+            page.screenshot(path='screenshot_error_general.png')
+            print("Se guardó una captura de pantalla del error en 'screenshot_error_general.png' para depuración.")
+        
+        browser.close()
+        print("Búsqueda finalizada. No se pudo encontrar el artículo Market Wrap.")
+        return None
+
+# ==============================================================================
+# OTRAS FUNCIONES (sin cambios mayores)
+# ==============================================================================
+
+def archivar_url(url):
+    print(f"Enviando URL a archive.ph para archivar: {url}")
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     }
-
     try:
-        res = requests.get(url, headers=headers, timeout=30)
-        soup = BeautifulSoup(res.text, "html.parser")
-
-        # Buscar bloques que contienen 'Markets Wrap'
-        secciones = soup.find_all("a", href=True)
-        for link in secciones:
-            if "Markets Wrap" in link.get_text(strip=True) and "/news/articles/" in link["href"]:
-                return "https://www.bloomberg.com" + link["href"]
-
-        print("No se encontró el artículo Market Wrap en el HTML.")
-        return None
-    except Exception as e:
-        print(f"Error accediendo a Bloomberg: {e}")
-        return None
-
-
-
-def archivar_url(url):
-    print("Enviando URL a archive.ph...")
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Referer": "https://archive.ph/"
-    }
-
-    try:
-        res = requests.post("https://archive.ph/submit/", data={"url": url}, headers=headers, timeout=60)
-        time.sleep(20)
-        with open("respuesta_archiveph.html", "w", encoding="utf-8") as f:
-            f.write(res.text)
-
-        soup = BeautifulSoup(res.text, "html.parser")
-        link_input = soup.find("input", {"id": "SHARE_LONGLINK"})
-        if link_input:
-            return link_input.get("value")
-        meta_tag = soup.find("meta", {"property": "og:url"})
-        if meta_tag:
-            return meta_tag.get("content")
+        # Usamos requests aquí porque la web de archive.ph es más simple
+        res = requests.post("https://archive.ph/submit/", data={"url": url}, headers=headers, timeout=60, allow_redirects=True)
+        
+        # El enlace archivado suele estar en la URL final después de la redirección
+        if res.history: # Si hubo redirecciones
+            url_archivada = res.url
+            print(f"URL archivada detectada por redirección: {url_archivada}")
+            return url_archivada
+        else: # Si no, buscarlo en el contenido (plan B)
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(res.text, "html.parser")
+            meta_tag = soup.find("meta", {"property": "og:url"})
+            if meta_tag and meta_tag.get("content"):
+                 url_archivada = meta_tag.get("content")
+                 print(f"URL archivada encontrada en meta tag: {url_archivada}")
+                 return url_archivada
 
     except Exception as e:
-        print(f"Error al archivar: {e}")
+        print(f"Error al archivar la URL: {e}")
     return None
 
 def descargar_pdf(archive_url, nombre_pdf="market_wrap.pdf"):
+    print(f"Descargando PDF desde: {archive_url}")
     try:
-        pdfkit.from_url(archive_url, nombre_pdf)
+        # Opciones para mejorar la creación del PDF con pdfkit
+        options = {
+            'page-size': 'A4',
+            'margin-top': '0.75in',
+            'margin-right': '0.75in',
+            'margin-bottom': '0.75in',
+            'margin-left': '0.75in',
+            'encoding': "UTF-8",
+            'no-outline': None,
+            'enable-smart-shrinking': '',
+            'javascript-delay': 2000 # Esperar 2 segundos para que cargue el JS de la página archivada
+        }
+        pdfkit.from_url(archive_url, nombre_pdf, options=options)
+        print(f"PDF generado con éxito: {nombre_pdf}")
         return nombre_pdf
     except Exception as e:
         print(f"Error al generar PDF: {e}")
         return None
 
 def enviar_email(original, archivado, pdf_path):
+    print("Preparando el correo electrónico...")
     msg = EmailMessage()
-    msg['Subject'] = "Market Wrap Bloomberg Diario"
+    msg['Subject'] = "Bloomberg Markets Wrap Diario"
     msg['From'] = GMAIL_USER
     msg['To'] = EMAIL_TO
 
     contenido = f"""
     Hola,
 
-    Aquí tienes el artículo Market Wrap de Bloomberg de hoy.
+    Aquí tienes el resumen "Markets Wrap" de Bloomberg de hoy.
 
-    Enlace original:
+    Enlace original (puede caducar o requerir suscripción):
     {original}
 
-    Enlace archivado:
+    Enlace archivado (permanente y de libre acceso):
     {archivado}
 
-    Se adjunta el PDF del artículo.
+    Se adjunta el artículo completo en formato PDF para tu comodidad.
 
     Saludos,
-    Tu bot automático
+    Tu Asistente Automático
     """
     msg.set_content(contenido)
 
     if pdf_path and os.path.exists(pdf_path):
         with open(pdf_path, 'rb') as f:
             msg.add_attachment(f.read(), maintype='application', subtype='pdf', filename=os.path.basename(pdf_path))
+        print("PDF adjuntado al correo.")
+    else:
+        print("Advertencia: No se encontró el archivo PDF para adjuntar.")
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(GMAIL_USER, GMAIL_PASS)
             smtp.send_message(msg)
-        print("Correo enviado con éxito.")
+        print("Correo electrónico enviado con éxito.")
     except Exception as e:
-        print(f"Error al enviar el correo: {e}")
+        print(f"Error CRÍTICO al enviar el correo: {e}")
 
 def url_ya_enviada(url):
-    if os.path.exists(HISTORIAL_ARCHIVO):
-        with open(HISTORIAL_ARCHIVO, "r") as f:
-            return url == f.read().strip()
-    return False
+    if not os.path.exists(HISTORIAL_ARCHIVO):
+        return False
+    with open(HISTORIAL_ARCHIVO, "r") as f:
+        ultima_url = f.read().strip()
+        return url == ultima_url
 
 def guardar_url(url):
     with open(HISTORIAL_ARCHIVO, "w") as f:
         f.write(url)
+    print(f"URL actualizada en el historial: {url}")
 
 def main():
-    url = obtener_url_market_wrap()
-    if not url:
-        print("No se encontró el artículo Market Wrap.")
+    print("\n--- INICIANDO SCRIPT DE BLOOMBERG WRAP ---")
+    url_original = obtener_url_market_wrap()
+    
+    if not url_original:
+        print("--- SCRIPT FINALIZADO: No se encontró artículo. ---")
         return
 
-    if url_ya_enviada(url):
-        print("Esta URL ya fue enviada anteriormente.")
+    if url_ya_enviada(url_original):
+        print("Este artículo ya fue procesado y enviado anteriormente.")
+        print("--- SCRIPT FINALIZADO: Sin novedades. ---")
         return
 
-    print(f"Artículo encontrado: {url}")
-    archivado = archivar_url(url)
-    if not archivado:
-        print("No se pudo archivar la URL.")
+    print(f"Artículo nuevo encontrado: {url_original}")
+    url_archivada = archivar_url(url_original)
+    
+    if not url_archivada:
+        print("No se pudo archivar la URL. Se intentará enviar el correo sin el PDF.")
+        # Aún podrías enviar un email sin el PDF si lo deseas, pero por ahora lo detenemos.
+        print("--- SCRIPT FINALIZADO: Fallo en el archivado. ---")
         return
 
-    print(f"URL archivada: {archivado}")
-    pdf_path = descargar_pdf(archivado)
+    # Espera para asegurar que la página archivada esté disponible
+    print("Esperando 10 segundos para que el enlace archivado se propague...")
+    time.sleep(10)
 
-    if pdf_path:
-        enviar_email(url, archivado, pdf_path)
-        guardar_url(url)
-    else:
-        print("No se pudo generar el PDF.")
+    pdf_path = descargar_pdf(url_archivada)
+    
+    if not pdf_path:
+        print("No se pudo generar el PDF. El correo se enviará sin el adjunto.")
+    
+    enviar_email(url_original, url_archivada, pdf_path)
+    guardar_url(url_original)
+    
+    print("--- SCRIPT COMPLETADO CON ÉXITO ---")
+
 
 if __name__ == "__main__":
     main()
