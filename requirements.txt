@@ -1,5 +1,5 @@
-beautifulsoup4
-requests
 python-dotenv
-pdfkit
 playwright
+pdfkit
+requests
+beautifulsoup4
