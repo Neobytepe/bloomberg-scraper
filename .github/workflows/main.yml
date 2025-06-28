@@ -35,3 +35,17 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+
+      - name: Ejecutar script
+        run: python main.py
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+
+      - name: Subir captura de pantalla en caso de error
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-de-error
+          path: screenshot_*.png
