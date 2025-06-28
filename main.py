@@ -28,26 +28,34 @@ def obtener_url_market_wrap():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto("https://www.bloomberg.com/markets", timeout=60000)
-        page.wait_for_timeout(5000)
 
-        # Buscar bloques que contengan "Markets Wrap"
-        bloques = page.locator("div:has-text('Markets Wrap')").all()
-        print(f"Se encontraron {len(bloques)} bloques con 'Markets Wrap'")
+        try:
+            # Esperar de forma inteligente a que aparezca el texto "Markets Wrap"
+            page.wait_for_selector("text=Markets Wrap", timeout=15000)
+        except:
+            print("No se encontró el texto 'Markets Wrap' después de esperar.")
+            browser.close()
+            return None
 
-        for bloque in bloques:
+        # Buscar el texto
+        elementos = page.locator("text=Markets Wrap").all()
+        print(f"Se encontraron {len(elementos)} elementos con 'Markets Wrap'")
+
+        for e in elementos:
             try:
-                # Buscar un <a> dentro del mismo bloque
-                enlace = bloque.locator("a").first
-                href = enlace.get_attribute("href")
+                # Subir en el DOM hasta encontrar un enlace (<a>) contenedor
+                link = e.locator("xpath=ancestor::a").first
+                href = link.get_attribute("href")
                 if href and href.startswith("/news/articles/"):
                     browser.close()
                     return "https://www.bloomberg.com" + href
-            except Exception as e:
-                print(f"Error al buscar enlace: {e}")
+            except Exception as err:
+                print(f"Error al obtener enlace: {err}")
                 continue
 
         browser.close()
     return None
+
 
 def archivar_url(url):
     print("Enviando URL a archive.ph...")
