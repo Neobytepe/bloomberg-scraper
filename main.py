@@ -26,35 +26,41 @@ if not all([GMAIL_USER, GMAIL_PASS, EMAIL_TO]):
 def obtener_url_market_wrap():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        context = browser.new_context()
+        page = context.new_page()
+
+        print("Abriendo Bloomberg Markets...")
         page.goto("https://www.bloomberg.com/markets", timeout=60000)
 
+        # Esperar explícitamente a que cargue un bloque de artículo
         try:
-            # Esperar de forma inteligente a que aparezca el texto "Markets Wrap"
-            page.wait_for_selector("text=Markets Wrap", timeout=15000)
+            page.wait_for_selector("article", timeout=15000)
         except:
-            print("No se encontró el texto 'Markets Wrap' después de esperar.")
+            print("No se cargaron artículos en Bloomberg.")
             browser.close()
             return None
 
-        # Buscar el texto
-        elementos = page.locator("text=Markets Wrap").all()
-        print(f"Se encontraron {len(elementos)} elementos con 'Markets Wrap'")
+        # Buscar todos los artículos
+        articulos = page.locator("article").all()
+        print(f"Se encontraron {len(articulos)} artículos en la página.")
 
-        for e in elementos:
+        for art in articulos:
             try:
-                # Subir en el DOM hasta encontrar un enlace (<a>) contenedor
-                link = e.locator("xpath=ancestor::a").first
-                href = link.get_attribute("href")
-                if href and href.startswith("/news/articles/"):
-                    browser.close()
-                    return "https://www.bloomberg.com" + href
-            except Exception as err:
-                print(f"Error al obtener enlace: {err}")
+                # Verificar si el artículo contiene "Markets Wrap"
+                if "Markets Wrap" in art.inner_text():
+                    link = art.locator("a").first
+                    href = link.get_attribute("href")
+                    if href and href.startswith("/news/articles/"):
+                        browser.close()
+                        return "https://www.bloomberg.com" + href
+            except Exception as e:
+                print(f"Error al revisar un artículo: {e}")
                 continue
 
+        print("No se encontró el artículo Market Wrap.")
         browser.close()
-    return None
+        return None
+
 
 
 def archivar_url(url):
