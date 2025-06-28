@@ -24,41 +24,25 @@ if not all([GMAIL_USER, GMAIL_PASS, EMAIL_TO]):
     raise EnvironmentError("Faltan variables de entorno: GMAIL_USER, GMAIL_PASS o EMAIL_TO")
 
 def obtener_url_market_wrap():
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
-        page = context.new_page()
+    url = "https://www.bloomberg.com/markets"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    }
 
-        print("Abriendo Bloomberg Markets...")
-        page.goto("https://www.bloomberg.com/markets", timeout=60000)
+    try:
+        res = requests.get(url, headers=headers, timeout=30)
+        soup = BeautifulSoup(res.text, "html.parser")
 
-        # Esperar explícitamente a que cargue un bloque de artículo
-        try:
-            page.wait_for_selector("article", timeout=15000)
-        except:
-            print("No se cargaron artículos en Bloomberg.")
-            browser.close()
-            return None
+        # Buscar bloques que contienen 'Markets Wrap'
+        secciones = soup.find_all("a", href=True)
+        for link in secciones:
+            if "Markets Wrap" in link.get_text(strip=True) and "/news/articles/" in link["href"]:
+                return "https://www.bloomberg.com" + link["href"]
 
-        # Buscar todos los artículos
-        articulos = page.locator("article").all()
-        print(f"Se encontraron {len(articulos)} artículos en la página.")
-
-        for art in articulos:
-            try:
-                # Verificar si el artículo contiene "Markets Wrap"
-                if "Markets Wrap" in art.inner_text():
-                    link = art.locator("a").first
-                    href = link.get_attribute("href")
-                    if href and href.startswith("/news/articles/"):
-                        browser.close()
-                        return "https://www.bloomberg.com" + href
-            except Exception as e:
-                print(f"Error al revisar un artículo: {e}")
-                continue
-
-        print("No se encontró el artículo Market Wrap.")
-        browser.close()
+        print("No se encontró el artículo Market Wrap en el HTML.")
+        return None
+    except Exception as e:
+        print(f"Error accediendo a Bloomberg: {e}")
         return None
 
 
